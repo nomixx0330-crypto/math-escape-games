@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>時空數學密室逃脫 - 國小四年級四則運算大冒險</title>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Local Three.js with fallback to CDN -->
+    <script src="lib/three.min.js"></script>
+    <script>
+        if (!window.THREE) {
+            document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>');
+        }
+    </script>
+</head>
+<body>
+
+    <!-- 3D WebGL Canvas Container -->
+    <div id="webgl-container"></div>
+
+    <!-- HUD Overlay -->
+    <div id="game-hud">
+        <!-- Top Bar -->
+        <div class="hud-top-bar">
+            <!-- Left Player & Room Info -->
+            <div class="hud-player-info">
+                <div class="player-avatar">🎓</div>
+                <div class="player-details">
+                    <span class="player-name" id="hud-player-name">數學冒險家</span>
+                    <span class="room-badge" id="hud-room-badge">當前：第 1 密室 / 3</span>
+                </div>
+            </div>
+
+            <!-- Right Top Score & Utilities (As requested in user prompt) -->
+            <div class="hud-score-panel">
+                <div class="score-box">
+                    <span class="score-label">⭐ 當前積分</span>
+                    <span class="score-val" id="hud-score-val">0</span>
+                </div>
+                <div class="time-box">
+                    <span class="score-label">⏱️ 探索時間</span>
+                    <span class="time-val" id="hud-time-val">00:00</span>
+                </div>
+                <button class="hud-btn" id="leaderboard-btn" title="查看排行榜">🏆</button>
+                <button class="hud-btn" id="sound-toggle-btn" title="切換音效">🔊</button>
+            </div>
+        </div>
+
+        <!-- Center Crosshair & Tooltip -->
+        <div class="hud-center-tip">
+            <div id="interaction-tip">調查大門</div>
+            <div class="control-hint">🖱️ 按住滑鼠拖曳或手機滑動可 360° 環顧密室</div>
+        </div>
+
+        <!-- Bottom Inventory Bar -->
+        <div class="hud-bottom-bar">
+            <div class="inventory-container">
+                <div class="inventory-title">
+                    <span>🎒</span> 道具背包
+                </div>
+                <div id="inventory-items">
+                    <span class="empty-inv">（在密室中環顧 360° 尋找發光道具）</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
+
+    <!-- ================================================================= -->
+    <!-- START / LOGIN MODAL -->
+    <!-- ================================================================= -->
+    <div class="modal-backdrop active" id="start-modal">
+        <div class="modal-box start-box">
+            <div class="start-icon">🗝️</div>
+            <h1 class="start-title">時空數學密室逃脫</h1>
+            <p class="start-subtitle">國小四年級四則運算跨時空考驗<br>360度全景第一視角 ‧ 解謎道具 ‧ 榮譽證照</p>
+
+            <div class="rules-preview">
+                <div class="rule-card">
+                    <div class="r-icon">🏰</div>
+                    <div class="r-title">第一密室：古典莊園</div>
+                    <div class="r-desc">基本運算題<br>獲得【初級證照】</div>
+                </div>
+                <div class="rule-card">
+                    <div class="r-icon">🛰️</div>
+                    <div class="r-title">第二密室：量子科技</div>
+                    <div class="r-desc">運算判斷題<br>獲得【進階證照】</div>
+                </div>
+                <div class="rule-card">
+                    <div class="r-icon">🏛️</div>
+                    <div class="r-title">第三密室：遠古神廟</div>
+                    <div class="r-desc">情境應用題<br>獲得【大師證照】</div>
+                </div>
+            </div>
+
+            <div class="name-input-group">
+                <label class="name-input-label" for="player-name-input">請輸入學生姓名或冒險者暱稱：</label>
+                <input type="text" id="player-name-input" placeholder="例如：四年甲班 小明" maxlength="15" autofocus>
+                <div class="quick-names">
+                    <span class="quick-name-tag">四年級算術小偵探</span>
+                    <span class="quick-name-tag">四則運算超人</span>
+                    <span class="quick-name-tag">時空算術神童</span>
+                    <span class="quick-name-tag">四年甲班第一名</span>
+                </div>
+            </div>
+
+            <button class="btn-primary" id="start-game-btn" style="width: 100%; font-size: 18px; padding: 15px;">
+                🚀 開始 360° 密室逃脫冒險
+            </button>
+        </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- MATH PUZZLE TERMINAL MODAL -->
+    <!-- ================================================================= -->
+    <div class="modal-backdrop" id="puzzle-modal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div class="modal-title-wrap">
+                    <h2 class="modal-title" id="puzzle-title">密室大門密碼鎖</h2>
+                    <span class="category-badge" id="puzzle-badge">四則運算</span>
+                </div>
+                <button class="hud-btn" id="close-puzzle-btn" title="關閉視窗">✖</button>
+            </div>
+
+            <div class="puzzle-question-box" id="puzzle-question">
+                載入運算題目中...
+            </div>
+
+            <!-- In-Modal Quick Item Usage Bar -->
+            <div id="puzzle-items-bar" class="puzzle-items-bar"></div>
+
+            <div class="puzzle-options-grid" id="puzzle-options">
+                <!-- Dynamic Options populated by JavaScript -->
+            </div>
+
+            <div id="puzzle-hint-box"></div>
+        </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- CERTIFICATE MODAL -->
+    <!-- ================================================================= -->
+    <div class="modal-backdrop" id="cert-modal">
+        <div class="modal-box cert-modal-box">
+            <div class="modal-header">
+                <div class="modal-title-wrap">
+                    <h2 class="modal-title">🎉 榮獲四則運算官方認證證照！</h2>
+                    <span class="category-badge">成就解鎖</span>
+                </div>
+            </div>
+
+            <div class="cert-img-wrapper">
+                <img id="cert-canvas-img" src="" alt="四則運算證照">
+            </div>
+
+            <div class="cert-actions">
+                <button class="btn-secondary" id="cert-download-btn">📥 下載此證照 (PNG)</button>
+                <button class="btn-primary" id="cert-next-btn">進入下一間密室 ➔</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================================================================= -->
+    <!-- LEADERBOARD MODAL -->
+    <!-- ================================================================= -->
+    <div class="modal-backdrop" id="leaderboard-modal">
+        <div class="modal-box leaderboard-modal-box">
+            <div class="modal-header">
+                <div class="modal-title-wrap">
+                    <h2 class="modal-title">🏆 時空四則運算 榮譽星光榜</h2>
+                    <span class="category-badge">全體玩家即時積分排名</span>
+                </div>
+                <button class="hud-btn" id="close-leaderboard-btn">✖</button>
+            </div>
+
+            <div class="leaderboard-table-wrap">
+                <table class="leaderboard-table">
+                    <thead>
+                        <tr>
+                            <th>名次</th>
+                            <th>玩家暱稱</th>
+                            <th>總積分</th>
+                            <th>最高證照</th>
+                            <th>通關用時</th>
+                            <th>日期</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboard-list">
+                        <!-- Populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="display: flex; justify-content: center; gap: 14px; margin-top: 14px;">
+                <button class="btn-primary" id="replay-game-btn">🔄 再玩一次（題目道具隨機刷新）</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Logic Scripts -->
+    <script src="js/sound_engine.js"></script>
+    <script src="js/room_textures.js"></script>
+    <script src="js/math_engine.js"></script>
+    <script src="js/leaderboard.js"></script>
+    <script src="js/escape_game.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
